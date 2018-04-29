@@ -255,6 +255,10 @@ class label(object):
         return func
 
 
+def _is_label_func(func):
+    return getattr(getattr(func, '__func__', func), '_label', False)
+
+
 class staticlabel(label):
     """A label decorator for staticmethods.
 
@@ -335,8 +339,9 @@ class _post(_condition):
         return func
 
 
-def _is_label_func(func):
-    return getattr(getattr(func, '__func__', func), '_label', False)
+def submit(func):
+    func._flow_submit = True
+    return func
 
 
 def make_bundles(operations, size=None):
@@ -379,7 +384,7 @@ class JobOperation(object):
     :type cmd: str
     """
 
-    def __init__(self, name, job, cmd, np=None, mpi=False):
+    def __init__(self, name, job, cmd, np=None, mpi=False, submit=False):
         if np is None:
             np = 1
         self.name = name
@@ -391,6 +396,7 @@ class JobOperation(object):
                 "Dynamic MPI-command substitution may be deprecated in future releases.",
                 PendingDeprecationWarning)
         self.mpi = mpi
+        self.submit = submit
 
     def __str__(self):
         return self.name
@@ -502,7 +508,7 @@ class FlowOperation(object):
         required for backwards-compatibility (pending deprecation)
     """
 
-    def __init__(self, cmd, pre=None, post=None, np=None, mpi=False):
+    def __init__(self, cmd, pre=None, post=None, np=None, mpi=False, submit=False):
         if pre is None:
             pre = []
         if post is None:
@@ -511,7 +517,8 @@ class FlowOperation(object):
             np = 1
         self._cmd = cmd
         self._np = np
-        self.mpi = False
+        self.mpi = mpi
+        self.submit = submit
 
         self._prereqs = [FlowCondition(cond) for cond in pre]
         self._postconds = [FlowCondition(cond) for cond in post]
@@ -710,6 +717,7 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
         status = job.document.get('status', dict())
         result['active'] = is_active(status)
         result['labels'] = sorted(set(self.classify(job)))
+        result['operations'] = list(self.next_operations(job))
         result['operation'] = self.next_operation(job)
         highest_status = max(status.values()) if len(status) else 1
         result['submission_status'] = [manage.JobStatus(highest_status).name]
@@ -993,6 +1001,7 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
                 cmd=func if func in self._CMD_FUNCTIONS else _guess_cmd(func, name),
                 pre=getattr(func, '_flow_pre', None),
                 post=getattr(func, '_flow_post', None),
+                submit=getattr(func, '_flow_submit', False),
             ) for name, func in self._OPERATION_FUNCTIONS.items()
         }
 
@@ -1039,7 +1048,7 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
             nargs='*',
             help="Flags to be forwarded to the scheduler.")
         parser.add_argument(
-            '--pretend',
+            '-p', '--pretend',
             action='store_true',
             help="Do not really submit, but print the submittal script to screen.")
         parser.add_argument(
@@ -1128,14 +1137,17 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
             print(util.tabulate.tabulate([], headers=table_header), file=file)
             print("[no labels]", file=file)
 
-    def format_row(self, status, statepoint=None, max_width=None):
-        "Format each row in the detailed status output."
-        row = [
+    def format_rows(self, status, statepoint=None, max_width=None, skip_active=False):
+        "Format rows for the detailed status output."
+        if skip_active and status['active']:
+            return
+        rows = [[
             status['job_id'],
             ', '.join((self._alias(s) for s in status['submission_status'])),
-            status['operation'],
+            op,
             ', '.join(status.get('labels', [])),
-        ]
+            ]
+            for op in status['operations']]
         if statepoint:
             sps = self.open_job(id=status['job_id']).statepoint()
 
@@ -1150,10 +1162,12 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
 
             for i, k in enumerate(statepoint):
                 v = self._alias(get(k, sps))
-                row.insert(i + 3, None if v is None else shorten(str(v), max_width))
+                for row in rows:
+                    row.insert(i + 3, None if v is None else shorten(str(v), max_width))
         if status['operation'] and not status['active']:
-            row[1] += ' ' + self._alias('requires_attention')
-        return row
+            for row in rows:
+                row[1] += ' ' + self._alias('requires_attention')
+        return rows
 
     def _print_detailed(self, stati, parameters=None,
                         skip_active=False, param_max_width=None,
@@ -1164,8 +1178,9 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
         if parameters:
             for i, value in enumerate(parameters):
                 table_header.insert(i + 3, shorten(self._alias(str(value)), param_max_width))
-        rows = (self.format_row(status, parameters, param_max_width)
-                for status in stati if not (skip_active and status['active']))
+        rows = []
+        for status in stati:
+            rows.extend(self.format_rows(status, parameters, param_max_width, skip_active))
         print(util.tabulate.tabulate(rows, headers=table_header), file=file)
         if abbreviate.table:
             print(file=file)
@@ -1454,7 +1469,8 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
         """
         for name, op in self.operations.items():
             if op.eligible(job):
-                yield JobOperation(name=name, job=job, cmd=op(job), np=op.np(job), mpi=op.mpi)
+                yield JobOperation(
+                    name=name, job=job, cmd=op(job), np=op.np(job), mpi=op.mpi, submit=op.submit)
 
     def next_operation(self, job):
         """Determine the next operation for this job.
@@ -1490,6 +1506,8 @@ class FlowProject(with_metaclass(_FlowProjectClass, signac.contrib.Project)):
         is not considered active, that means already queued or running.
         """
         if job_operation is None:
+            return False
+        if job_operation.submit is False:
             return False
         if job_operation.get_status() >= manage.JobStatus.submitted:
             return False
