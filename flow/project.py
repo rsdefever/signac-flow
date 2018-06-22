@@ -70,9 +70,7 @@ from .util.tqdm import tqdm
 from .util.misc import _positive_int
 from .util.misc import _mkdir_p
 from .util.misc import draw_progressbar
-from .util.template_filters import _format_timedelta
-from .util.template_filters import _identical
-from .util.template_filters import _with_np_offset
+from .util import template_filters as tf
 from .util.misc import write_human_readable_statepoint
 from .util.misc import add_cwd_to_environment_pythonpath
 from .util.misc import switch_to_directory
@@ -594,14 +592,16 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             extensions=[TemplateError])
 
         # Setup standard filters that can be used to format context variables.
-        self._template_environment_.filters['format_timedelta'] = _format_timedelta
-        self._template_environment_.filters['identical'] = _identical
+        self._template_environment_.filters['format_timedelta'] = tf.format_timedelta
+        self._template_environment_.filters['identical'] = tf.identical
+        self._template_environment_.filters['with_np_offset'] = tf.with_np_offset
+        self._template_environment_.filters['calc_num_nodes'] = tf.calc_num_nodes
+        self._template_environment_.filters['check_utilization'] = tf.check_utilization
         self._template_environment_.filters['get_config_value'] = flow_config.get_config_value
         self._template_environment_.filters['require_config_value'] = \
             flow_config.require_config_value
         if 'max' not in self._template_environment_.filters:    # for jinja2 < 2.10
             self._template_environment_.filters['max'] = max
-        self._template_environment_.filters['with_np_offset'] = _with_np_offset
 
     @property
     def _template_environment(self):
