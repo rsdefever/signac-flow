@@ -525,7 +525,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         FlowProject().main()
 
     :param config:
-        A signac configuaration, defaults to the configuration loaded
+        A signac configuration, defaults to the configuration loaded
         from the environment.
     :type config:
         A signac config object.
