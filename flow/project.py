@@ -916,7 +916,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         This function fetches all scheduled jobs from the scheduler
         and generates a nested dictionary, where the first key is
         the job id, the second key the operation name and the last
-        value are the cooresponding scheduler jobs.
+        value are the corresponding scheduler jobs.
 
         For example, to print the status of all scheduler jobs, associated
         with a specific job operation, execute:
