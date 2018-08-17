@@ -1007,6 +1007,24 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             row[2] += ' ' + self._alias('requires_attention')
         return row
 
+    def query_scheduler(self, jobs=None, err=None, ignore_errors=False, scheduler=None):
+        print("hello scheduler")
+        # Based on print_status
+        self._fetch_scheduler_status(jobs, scheduler, err, ignore_errors)
+        yield 1
+
+    def _query_scheduler_status(self, jobs=None, scheduler=None, file=None, ignore_errors=False):
+        "Return the ClusterJob objects"
+        # Map all scheduler jobs by their name.
+        print(self._tr("Query scheduler..."), file=file)
+        sjobs_map = defaultdict(list)
+        for sjob in self.scheduler_jobs(scheduler):
+            sjobs_map[sjob.name()].append(sjob)
+        print(dir(sjobs_map))
+        return sjobs_map
+        # At this point sjobs_map has a dictionary of cluster jobs mapped to statuses
+        # Specifically the dictionary is the project_root/job_id/operation/cluster_id/???
+
     def _fetch_scheduler_status(self, jobs=None, scheduler=None, file=None, ignore_errors=False):
         "Update the status docs."
         if file is None:
@@ -1017,11 +1035,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             if scheduler is None:
                 scheduler = self._environment.get_scheduler()
 
-            # Map all scheduler jobs by their name.
-            print(self._tr("Query scheduler..."), file=file)
-            sjobs_map = defaultdict(list)
-            for sjob in self.scheduler_jobs(scheduler):
-                sjobs_map[sjob.name()].append(sjob)
+            sjobs_map = self._query_scheduler_status(jobs, scheduler, file, ignore_errors)
 
             # Iterate through all jobs ...
             for job in with_progressbar(jobs, desc='Update status cache:', file=file):
@@ -1031,6 +1045,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
                 for name, op in self._job_operations(job):
                     scheduler_jobs = sjobs_map.get(
                         op.get_id(), sjobs_map.get(op._get_legacy_id(), []))
+                    if scheduler_jobs:
+                        print(scheduler_jobs[0]._id())
                     from operator import methodcaller
                     tmp = list(map(methodcaller('status'), scheduler_jobs))
                     job_status[op.get_id()] = int(max(tmp) if tmp else JobStatus.unknown)
@@ -1138,6 +1154,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
                 "print_status(): the scheduler argument is deprecated!", DeprecationWarning)
 
         # Update the status docs of each job:
+#        import pdb;pdb.set_trace()
         self._fetch_scheduler_status(jobs, scheduler, err, ignore_errors)
 
         # Get status dict for all selected jobs
