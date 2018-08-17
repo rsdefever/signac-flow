@@ -1015,6 +1015,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
 
     def _query_scheduler_status(self, jobs=None, scheduler=None, file=None, ignore_errors=False):
         "Return the ClusterJob objects"
+        if scheduler is None:
+            scheduler = self._environment.get_scheduler()
         # Map all scheduler jobs by their name.
         print(self._tr("Query scheduler..."), file=file)
         sjobs_map = defaultdict(list)
@@ -1029,12 +1031,9 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         "Update the status docs."
         if file is None:
             file = sys.stderr
+        if jobs is None:
+            jobs = list(self)
         try:
-            if jobs is None:
-                jobs = list(self)
-            if scheduler is None:
-                scheduler = self._environment.get_scheduler()
-
             sjobs_map = self._query_scheduler_status(jobs, scheduler, file, ignore_errors)
 
             # Iterate through all jobs ...
