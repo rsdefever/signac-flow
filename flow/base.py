@@ -26,10 +26,10 @@ class FlowCondition(object):
     def __init__(self, callback):
         self._callback = callback
 
-    def __call__(self, job):
+    def __call__(self, job_or_jobs):
         if self._callback is None:
             return True
-        return self._callback(job)
+        return self._callback(job_or_jobs)
 
     def __hash__(self):
         return hash(self._callback)
@@ -132,18 +132,27 @@ class FlowOperation(object):
         else:
             return False
 
-    def __call__(self, job=None):
-        if callable(self._cmd):
-            return self._cmd(job).format(job=job)
+    def __call__(self, job_or_jobs=None):
+        if self.is_aggregate():
+            if callable(self._cmd):
+                return self._cmd(job_or_jobs)
+            else:
+                return self._cmd
         else:
-            return self._cmd.format(job=job)
+            if callable(self._cmd):
+                return self._cmd(job_or_jobs).format(job=job_or_jobs)
+            else:
+                return self._cmd.format(job=job_or_jobs)
 
-    def np(self, job):
+    def np(self, job_or_jobs):
         "(deprecated) Return the number of processors this operation requires."
         if callable(self._np):
-            return self._np(job)
+            return self._np(job_or_jobs)
         else:
             return self._np
+
+    def is_aggregate(self):
+        return self.directives and self.directives.get('aggregate') == 'all'
 
 
 class JobOperation(object):
@@ -274,4 +283,92 @@ class JobOperation(object):
             status_cache = self.job.document['_status']
             return JobStatus(status_cache[self.get_id()])
         except KeyError:
+            return JobStatus.unknown
+
+
+class AggregateOperation(object):
+
+    MAX_LEN_ID = 100
+
+    def __init__(self, name, project, jobs, cmd, directives=None, np=None):
+        if directives is None:
+            directives = dict()
+        self.name = name
+        self.project = project
+        self.jobs = jobs
+        self.cmd = cmd
+
+        # Handle deprecated np argument:
+        if np is not None:
+            warnings.warn(
+                "The np argument for the JobOperation constructor is deprecated.",
+                DeprecationWarning)
+            assert directives.setdefault('np', np) == np
+        else:
+            directives.setdefault(
+                'np', directives.get('nranks', 1) * directives.get('omp_num_threads', 1))
+        directives.setdefault('ngpu', 0)
+        # Future: directives.setdefault('np', 1)
+
+        # Evaluate strings and callables for job:
+        def evaluate(value):
+            if value and callable(value):
+                return value(jobs)
+            else:
+                return value
+
+        self.directives = {key: evaluate(value) for key, value in directives.items()}
+
+    def __str__(self):
+        return "{}(#{})".format(self.name, len(self.jobs))
+
+    def get_id(self, index=0):
+        "Return a name, which identifies this job-operation."
+
+        # The full name is designed to be truly unique for each job-operation.
+        full_name = '{}%{}%{}'.format(
+            self.project.root_directory(), self.name, index)
+
+        # The job_op_id is a hash computed from the unique full name.
+        op_id = calc_id(full_name)
+
+        # The actual job id is then constructed from a readable part and the job_op_id,
+        # ensuring that the job-op is still somewhat identifiable, but guarantueed to
+        # be unique. The readable name is based on the project id, job id, operation name,
+        # and the index number. All names and the id itself are restricted in length
+        # to guarantuee that the id does not get too long.
+        max_len = self.MAX_LEN_ID - len(op_id)
+        if max_len < len(op_id):
+            raise ValueError("Value for MAX_LEN_ID is too small ({}).".format(self.MAX_LEN_ID))
+
+        readable_name = '{}/{}/{:04d}/'.format(
+            str(self.project)[:12], self.name[:12], index)[:max_len]
+
+        # By appending the unique op_id, we ensure that each id is truly unique.
+        return readable_name + op_id
+
+    def __hash__(self):
+        return int(sha1(self.get_id().encode('utf-8')).hexdigest(), 16)
+
+    def __eq__(self, other):
+        return self.get_id() == other.get_id()
+
+    def set_status(self, value):
+        "Store the operation's status."
+        status_doc = self.job.document.get('_status', dict())
+        status_doc[self.get_id()] = int(value)
+        self.job.document['_status'] = status_doc
+
+    def get_status(self):
+        "Retrieve the operation's last known status."
+        status = []
+        for job in self.jobs:
+            try:
+                status_cache = job.document['_status']
+                status.append(JobStatus(status_cache[self.get_id()]))
+            except KeyError:
+                continue
+        if status:
+            return max(status)
+        else:
             return JobStatus.unknown

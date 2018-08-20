@@ -183,7 +183,6 @@ def support_run_legacy_api(func):
         from .project import JobOperation
         legacy = 'operations' in kwargs
         if not legacy and jobs is not None:
-            jobs = list(jobs)
             for job in jobs:
                 if isinstance(job, JobOperation):
                     legacy = True

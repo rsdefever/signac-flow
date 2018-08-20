@@ -56,6 +56,7 @@ else:
 
 from .base import FlowOperation
 from .base import JobOperation
+from .base import AggregateOperation
 from .environment import get_environment
 from .scheduling.base import Scheduler
 from .scheduling.base import ClusterJob
@@ -205,6 +206,15 @@ class _post(_condition):
             post_conditions = getattr(other_func, '_flow_post', list())
             return all(c(job) for c in post_conditions)
         return cls(metacondition)
+
+
+def _is_aggregate_operation(directives):
+    if directives:
+        try:
+            return directives['aggregate'] == 'all'
+        except (AttributeError, KeyError):
+            pass
+    return False
 
 
 def make_bundles(operations, size=None):
@@ -1258,7 +1268,10 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if timeout is None and operation.name in self._operation_functions and \
                 operation.directives.get('executable', sys.executable) == sys.executable:
             logger.debug("Able to optimize execution of operation '{}'.".format(operation))
-            self._operation_functions[operation.name](operation.job)
+            if isinstance(operation, JobOperation):
+                self._operation_functions[operation.name](operation.job)
+            else:
+                self._operation_functions[operation.name](operation.jobs)
         else:   # need to fork
             fork(cmd=operation.cmd, timeout=timeout)
 
@@ -1320,7 +1333,6 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         # If no jobs argument is provided, we run operations for all jobs.
         if jobs is None:
             jobs = self
-        jobs = list(jobs)   # Ensure that the list of jobs does not change during execution.
 
         # Negative values for the execution limits, means 'no limit'.
         if num_passes and num_passes < 0:
@@ -1336,7 +1348,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         reached_execution_limit = Event()
 
         def select(operation):
-            if operation.job not in self:
+            if isinstance(operation, JobOperation) and operation.job not in self:
                 log("Job '{}' is no longer part of the project.".format(operation.job))
                 return False
             if num is not None and select.total_execution_count >= num:
@@ -1401,16 +1413,20 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
     def _get_pending_operations(self, jobs, operation_names=None):
         "Get all pending operations for the given selection."
         operation_names = None if operation_names is None else set(operation_names)
-
-        if len(jobs) > 1:
-            jobs = with_progressbar(jobs, desc='Gather pending operations:')
-        for job in jobs:
+        jobs_ = with_progressbar(jobs, desc='Gather pending operations:') if len(jobs) > 1 else jobs
+        for job in jobs_:
             for op in self.next_operations(job):
                 if operation_names and op.name not in operation_names:
                     continue
                 if not self.eligible_for_submission(op):
                     continue
                 yield op
+        for name, op in self._aggregate_operations(jobs, only_eligible=True):
+            if operation_names and op.name not in operation_names:
+                continue
+            if not self.eligible_for_submission(op):
+                continue
+            yield op
 
     def script(self, operations, parallel=False, template='script.sh', show_template_help=False):
         """Generate a run script to execute given operations.
@@ -1887,6 +1903,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         See also: :meth:`~.label`
         """
         for label_func, label_name in self._label_functions.items():
+            if _is_aggregate_operation(getattr(label_func, '_flow_directives', None)):
+                continue
             if label_name is None:
                 label_name = getattr(label, '_label_name',
                                      getattr(label, '__name__', type(label).__name__))
@@ -2011,17 +2029,20 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
     def _job_operations(self, job, only_eligible=False):
         "Yield instances of JobOperation constructed for specific job."
         for name, op in self.operations.items():
+            if op.is_aggregate():
+                continue
             if only_eligible and not op.eligible(job):
                 continue
             yield name, JobOperation(name=name, job=job, cmd=op(job), directives=op.directives)
 
-    def _aggregate_operations(self, jobs):
+    def _aggregate_operations(self, jobs, only_eligible=False):
         for name, op in self.operations.items():
             if not op.is_aggregate():
                 continue
             if only_eligible and not op.eligible(jobs):
                 continue
-            yield name, JobsOperation(name=name, jobs=jobs, cmd=op(jobs), directives=op.directives)
+            yield name, AggregateOperation(
+                name=name, project=self, jobs=jobs, cmd=op(jobs), directives=op.directives)
 
     def next_operations(self, job):
         """Determine the next eligible operations for job.
@@ -2106,10 +2127,15 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         def _guess_cmd(func, name, **kwargs):
             try:
                 executable = kwargs['directives']['executable']
+                aggregate = kwargs['directives'].get('aggregate') == 'all'
             except (KeyError, TypeError):
                 executable = sys.executable
+                aggregate = False
             path = getattr(func, '_flow_path', inspect.getsourcefile(func))
-            return '{} {} exec {} {{job._id}}'.format(executable, path, name)
+            if aggregate:
+                return '{} {} exec {}'.format(executable, path, name)
+            else:
+                return '{} {} exec {} {{job._id}}'.format(executable, path, name)
 
         for name, func in operations:
             if name in self._operations:
@@ -2302,7 +2328,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         except KeyError:
             raise KeyError("Unknown operation '{}'.".format(args.operation))
 
-        if getattr(operation_function, '_flow_aggregate', False):
+        if _is_aggregate_operation(getattr(operation_function, '_flow_directives', None)):
             operation_function(jobs)
         else:
             for job in jobs:
@@ -2322,7 +2348,10 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         else:
             filter_ = parse_filter_arg(args.filter)
             doc_filter = parse_filter_arg(args.doc_filter)
-            return list(self.find_jobs(filter=filter_, doc_filter=doc_filter))
+            if filter_ or doc_filter:
+                return self.find_jobs(filter=filter_, doc_filter=doc_filter)
+            else:
+                return self
 
     def main(self, parser=None, pool=None):
         """Call this function to use the main command line interface.
