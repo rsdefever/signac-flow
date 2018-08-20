@@ -63,6 +63,20 @@ class directives(object):
         return func
 
 
+class aggregate(object):
+
+    @classmethod
+    def all(cls, func):
+        "Specifies that ``func`` is a project-wide aggregate operation."
+        return directives(aggregate='all')(func)
+
+    @classmethod
+    def groupby(cls, key):
+        def _inner(func):
+            return directives(aggregate=dict(group=key))(func)
+        return _inner
+
+
 def _get_operations(include_private=False):
     """"Yields the name of all functions that qualify as an operation function.
 
