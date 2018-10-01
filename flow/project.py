@@ -1008,10 +1008,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         return row
 
     def query_scheduler(self, jobs=None, err=None, ignore_errors=False, scheduler=None):
-        print("hello scheduler")
         # Based on print_status
         self._fetch_scheduler_status(jobs, scheduler, err, ignore_errors)
-        yield 1
 
     def _query_scheduler_status(self, jobs=None, scheduler=None, file=None, ignore_errors=False):
         "Return the ClusterJob objects"
@@ -1022,7 +1020,6 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         sjobs_map = defaultdict(list)
         for sjob in self.scheduler_jobs(scheduler):
             sjobs_map[sjob.name()].append(sjob)
-        print(dir(sjobs_map))
         return sjobs_map
         # At this point sjobs_map has a dictionary of cluster jobs mapped to statuses
         # Specifically the dictionary is the project_root/job_id/operation/cluster_id/???
