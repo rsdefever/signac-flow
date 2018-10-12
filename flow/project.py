@@ -1008,10 +1008,19 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         return row
 
     def query_scheduler(self, jobs=None, err=None, ignore_errors=False, scheduler=None):
-        # Based on print_status
-        self._fetch_scheduler_status(jobs, scheduler, err, ignore_errors)
+        # Returns a function that requires job as argument
+        sjobs_map = self._query_scheduler_status(scheduler, err)
 
-    def _query_scheduler_status(self, jobs=None, scheduler=None, file=None, ignore_errors=False):
+        def search_ClusterJobs(job):
+            for name, op in self._job_operations(job):
+                scheduler_jobs = sjobs_map.get(
+                    op.get_id(), sjobs_map.get(op._get_legacy_id(), []))
+                if scheduler_jobs:
+                    print(scheduler_jobs[0]._id())
+                yield scheduler_jobs
+        return search_ClusterJobs
+
+    def _query_scheduler_status(self, scheduler=None, file=None):
         "Return the ClusterJob objects"
         if scheduler is None:
             scheduler = self._environment.get_scheduler()
@@ -1031,7 +1040,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if jobs is None:
             jobs = list(self)
         try:
-            sjobs_map = self._query_scheduler_status(jobs, scheduler, file, ignore_errors)
+            sjobs_map = self._query_scheduler_status(scheduler, file)
 
             # Iterate through all jobs ...
             for job in with_progressbar(jobs, desc='Update status cache:', file=file):
@@ -1150,7 +1159,6 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
                 "print_status(): the scheduler argument is deprecated!", DeprecationWarning)
 
         # Update the status docs of each job:
-#        import pdb;pdb.set_trace()
         self._fetch_scheduler_status(jobs, scheduler, err, ignore_errors)
 
         # Get status dict for all selected jobs
