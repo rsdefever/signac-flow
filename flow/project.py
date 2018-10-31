@@ -153,6 +153,10 @@ class _condition(object):
         return cls(lambda job: job.document.get(key, False))
 
     @classmethod
+    def false(cls, key):
+        return cls(lambda job: not job.document.get(key, False))
+
+    @classmethod
     def always(cls, func):
         return cls(lambda _: True)(func)
 
@@ -563,8 +567,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         self._register_operations()
 
         # Enable buffered mode for gathering of pending operations (if available).
-        self.get_pending_operations_buffered = self.config.get(
-            'get_pending_operations_buffered', False)
+        self._buffer_get_pending_operations = self.config.get(
+            'buffer_get_pending_operations', False)
 
     def _setup_template_environment(self):
         """Setup the jinja2 template environemnt.
@@ -974,7 +978,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             msg = "Error while getting operations status for job '{}': '{}'.".format(job, error)
             logger.debug(msg)
             if ignore_errors:
-                result['operations'] = None
+                result['operations'] = dict()
                 result['_operations_error'] = str(error)
             else:
                 raise
@@ -984,7 +988,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         except Exception as error:
             logger.debug("Error while classifying job '{}': '{}'.".format(job, error))
             if ignore_errors:
-                result['labels'] = None
+                result['labels'] = list()
                 result['_labels_error'] = str(error)
             else:
                 raise
@@ -1663,7 +1667,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
                                "there are still operations pending.")
                 break
             try:
-                if hasattr(signac, 'buffered') and self.get_pending_operations_buffered:
+                if hasattr(signac, 'buffered') and self._buffer_get_pending_operations:
                     with signac.buffered():
                         operations = list(filter(select, self._get_pending_operations(jobs, names)))
                 else:
@@ -2441,7 +2445,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if args.compact and not args.unroll:
             logger.warn("The -1/--one-line argument is incompatible with "
                         "'--stack' and will be ignored.")
-        debug = args.debug
+        show_traceback = args.debug or args.show_traceback
         args = {key: val for key, val in vars(args).items()
                 if key not in ['func', 'verbose', 'debug', 'show_traceback',
                                'job_id', 'filter', 'doc_filter']}
@@ -2454,10 +2458,10 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             self.print_status(jobs=jobs, **args)
         except Exception:
             logger.error(
-                "Error occured during status update. Use '--ignore-errors' "
-                "to complete the update anyways or '--debug' to show the full "
-                "traceback.")
-            if debug:
+                "Error occured during status update. Use '--show-traceback' to "
+                "show the full traceback or '--ignore-errors' to complete the "
+                "update anyways.")
+            if show_traceback:
                 raise
 
     def _main_next(self, args):

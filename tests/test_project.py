@@ -491,10 +491,18 @@ class ExecutionProjectTest(BaseProjectTest):
                     (0b1110, 0b1111),  # All pre-conditions and 1st post-condition
                                        # are met, need to evaluate all.
                     (0b1111, 0b1111),  # All conditions met, need to evaluate all.
-                ]:
+                    ]:
                 nonlocal_['evaluated'] = 0
                 project.run()
                 self.assertEqual(nonlocal_['evaluated'], expected_evaluation)
+
+
+class BufferedExecutionProjectTest(ExecutionProjectTest):
+
+    def mock_project(self):
+        project = super(BufferedExecutionProjectTest, self).mock_project()
+        project._buffer_get_pending_operations = True
+        return project
 
 
 class ExecutionDynamicProjectTest(ExecutionProjectTest):
