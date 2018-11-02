@@ -16,7 +16,7 @@ class Stampede2Launcher(Stampede2Environment):
     template = 'stampede2launcher.sh'
 
     @classmethod
-    def submit(cls, script, flags=None, *args, **kwargs):
+    def submit(cls, _id, script, flags=None, *args, **kwargs):
         """Submit a job submission script to the environment's scheduler.
 
         Scripts should be submitted to the environment, instead of directly
@@ -32,27 +32,22 @@ class Stampede2Launcher(Stampede2Environment):
         if isinstance(script, JobScript):  # api version < 6
             script = str(script)
 
-        # modify script for launcher
-        # need submission_name
-        # id?
+        submission_name=_id.split('/')[-1]
+        dir='launcher/'
         launcher_part='''
 export LAUNCHER_PLUGIN_DIR=$LAUNCHER_DIR/plugins
 export LAUNCHER_RMI=SLURM
 export LAUNCHER_JOB_FILE=%s
 
 $LAUNCHER_DIR/paramrun
-''' %submission_name
+''' %(dir+submission_name)
         script=script+launcher_part
 
         # create list of commands file for launcher
-        # need same submission name
-        laucher_file  = open('%s' %submission_name, 'w')
-        for i in len(operations):
-            file_object.write('%s %s %s' %(cmd,operation.cmd,operations[i])
-            # need to access cmd and operation name here,
-            # what is the data structure of operations variable in project
-            # seems more complex than just list of job_id
-        laucher_file.close()
+        launcher_file  = open('%s' %(dir+submission_name), 'w')
+        for operation in operations:
+            file_object.write(operation.cmd)
+        launcher_file.close()
 
         if cls.get_scheduler().submit(script, flags=flags, *args, **kwargs):
             return JobStatus.submitted
