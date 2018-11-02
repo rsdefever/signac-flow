@@ -1844,7 +1844,7 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if pretend:
             print(script)
         else:
-            return env.submit(_id=_id, script=script, flags=flags, **kwargs)
+            return env.submit(_id=_id, script=script, flags=flags, operations=list(operations), **kwargs)
 
     @_support_legacy_api
     def submit(self, bundle_size=1, jobs=None, names=None, num=None, parallel=False,
