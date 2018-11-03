@@ -155,6 +155,7 @@ class Stampede2LauncherEnvironment(Stampede2Environment):
     """Environment profile for the Stampede2 supercomputer using launcher.
     https://www.tacc.utexas.edu/systems/stampede2
     """
+    import os
     template = 'stampede2launcher.sh'
 
     @classmethod
@@ -176,6 +177,10 @@ class Stampede2LauncherEnvironment(Stampede2Environment):
 
         submission_name=_id.split('/')[-1]
         dir='launcher/'
+        try:
+            os.mkdir(dir)
+        except:
+            pass
         launcher_part='''
 export LAUNCHER_PLUGIN_DIR=$LAUNCHER_DIR/plugins
 export LAUNCHER_RMI=SLURM
