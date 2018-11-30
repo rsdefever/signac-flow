@@ -25,6 +25,7 @@ from flow.util.misc import switch_to_directory
 from flow import init
 
 from define_test_project import TestProject
+from define_test_project import TestDynamicProject
 
 if six.PY2:
     from tempdir import TemporaryDirectory
@@ -311,6 +312,16 @@ class ProjectTest(BaseProjectTest):
                 self.assertNotIn('echo "hello"', script)
                 self.assertIn('exec op2', script)
 
+    def test_init(self):
+        with open(os.devnull, 'w') as out:
+            for fn in init(root=self._tmp_dir.name, out=out):
+                fn_ = os.path.join(self._tmp_dir.name, fn)
+                self.assertTrue(os.path.isfile(fn_))
+
+
+class ExecutionProjectTest(BaseProjectTest):
+    project_class = TestProject
+
     def test_run(self):
         project = self.mock_project()
         output = StringIO()
@@ -319,7 +330,7 @@ class ProjectTest(BaseProjectTest):
                 with redirect_stderr(output):
                     project.run()
         output.seek(0)
-        run_output = output.read()
+        output.read()
         even_jobs = [job for job in project if job.sp.b % 2 == 0]
         for job in project:
             if job in even_jobs:
@@ -335,7 +346,7 @@ class ProjectTest(BaseProjectTest):
                 with redirect_stderr(output):
                     project.run(np=2)
         output.seek(0)
-        run_output = output.read()
+        output.read()
         even_jobs = [job for job in project if job.sp.b % 2 == 0]
         for job in project:
             if job in even_jobs:
@@ -434,11 +445,68 @@ class ProjectTest(BaseProjectTest):
             self.assertIsNotNone(next_op)
             self.assertEqual(next_op.get_status(), JobStatus.queued)
 
-    def test_init(self):
-        with open(os.devnull, 'w') as out:
-            for fn in init(root=self._tmp_dir.name, out=out):
-                fn_ = os.path.join(self._tmp_dir.name, fn)
-                self.assertTrue(os.path.isfile(fn_))
+    def test_condition_evaluation(self):
+        project = self.mock_project()
+
+        # Can't use the 'nonlocal' keyword with Python 2.7.
+        nonlocal_ = dict(evaluated=0)
+        state = None
+
+        def make_cond(cond):
+            def cond_func(job):
+                # Would prefer to use 'nonlocal' keyword, but not available for Python 2.7.
+                nonlocal_['evaluated'] |= cond
+                return cond & state
+            return cond_func
+
+        class Project(FlowProject):
+            pass
+
+        @Project.operation
+        @Project.pre(make_cond(0b1000))
+        @Project.pre(make_cond(0b0100))
+        @Project.post(make_cond(0b0010))
+        @Project.post(make_cond(0b0001))
+        def op1(job):
+            pass
+
+        project = Project(project.config)
+        self.assertTrue(len(project))
+        with redirect_stderr(StringIO()):
+            for state, expected_evaluation in [
+                    (0b0000, 0b1000),  # First pre-condition is not met
+                    (0b0001, 0b1000),  # means only the first pre-cond.
+                    (0b0010, 0b1000),  # should be evaluated.
+                    (0b0011, 0b1000),
+                    (0b0100, 0b1000),
+                    (0b0101, 0b1000),
+                    (0b0110, 0b1000),
+                    (0b0111, 0b1000),
+                    (0b1000, 0b1100),  # The first, but not the second
+                    (0b1001, 0b1100),  # pre-condition is met, need to evaluate
+                    (0b1010, 0b1100),  # both pre-conditions, but not post-conditions.
+                    (0b1011, 0b1100),
+                    (0b1100, 0b1110),  # Both pre-conditions met, evaluate
+                    (0b1101, 0b1110),  # first post-condition.
+                    (0b1110, 0b1111),  # All pre-conditions and 1st post-condition
+                                       # are met, need to evaluate all.
+                    (0b1111, 0b1111),  # All conditions met, need to evaluate all.
+                ]:
+                nonlocal_['evaluated'] = 0
+                project.run()
+                self.assertEqual(nonlocal_['evaluated'], expected_evaluation)
+
+
+class BufferedExecutionProjectTest(ExecutionProjectTest):
+
+    def mock_project(self):
+        project = super(BufferedExecutionProjectTest, self).mock_project()
+        project._buffer_get_pending_operations = True
+        return project
+
+
+class ExecutionDynamicProjectTest(ExecutionProjectTest):
+    project_class = TestDynamicProject
 
 
 class ProjectMainInterfaceTest(BaseProjectTest):
@@ -522,6 +590,10 @@ class ProjectMainInterfaceTest(BaseProjectTest):
                 self.assertIn('echo "hello"', '\n'.join(script_output))
             else:
                 self.assertNotIn('echo "hello"', '\n'.join(script_output))
+
+
+class DynamicProjectMainInterfaceTest(ProjectMainInterfaceTest):
+    project_class = TestDynamicProject
 
 
 if __name__ == '__main__':
