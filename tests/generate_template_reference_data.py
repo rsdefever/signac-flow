@@ -68,10 +68,6 @@ def init(project):
                 },
                 {
                     'partition': ['compute'],
-                    'nn': [None, 1, 2],
-                },
-                {
-                    'partition': ['compute'],
                     'parallel': [False, True],
                     'bundle': [['mpi_op', 'omp_op']],
                 }
@@ -80,10 +76,6 @@ def init(project):
                 {
                     'partition': ['skx-normal'],
                     'walltime': [None, 1],
-                },
-                {
-                    'partition': ['skx-normal'],
-                    'nn': [None, 1, 2],
                 },
                 {
                     'partition': ['skx-normal'],
@@ -98,10 +90,6 @@ def init(project):
                 },
                 {
                     'partition': ['RM'],
-                    'nn': [None, 1, 2],
-                },
-                {
-                    'partition': ['RM'],
                     'parallel': [False, True],
                     'bundle': [['mpi_op', 'omp_op']],
                 }
@@ -109,9 +97,6 @@ def init(project):
             'environments.umich.FluxEnvironment': [
                 {
                     'walltime': [None, 1],
-                },
-                {
-                    'nn': [None, 1, 2],
                 },
                 {
                     'parallel': [False, True],
@@ -123,9 +108,6 @@ def init(project):
                     'walltime': [None, 1],
                 },
                 {
-                    'nn': [None, 1, 2],
-                },
-                {
                     'parallel': [False, True],
                     'bundle': [['mpi_op', 'omp_op']],
                 }
@@ -133,9 +115,6 @@ def init(project):
             'environments.incite.EosEnvironment': [
                 {
                     'walltime': [None, 1],
-                },
-                {
-                    'nn': [None, 1, 2],
                 },
                 {
                     'parallel': [False, True],
@@ -165,7 +144,10 @@ flow.FlowProject._store_bundled = _store_bundled
 
 
 class TestProject(flow.FlowProject):
-    N = 2
+    ngpu=2
+    np=3
+    omp_num_threads=4
+    nranks=5
 
 
 @TestProject.operation
@@ -174,37 +156,37 @@ def serial_op(job):
 
 
 @TestProject.operation
-@flow.directives(np=TestProject.N)
+@flow.directives(np=TestProject.np)
 def parallel_op(job):
     pass
 
 
 @TestProject.operation
-@flow.directives(nranks=TestProject.N)
+@flow.directives(nranks=TestProject.nranks)
 def mpi_op(job):
     pass
 
 
 @TestProject.operation
-@flow.directives(omp_num_threads=TestProject.N)
+@flow.directives(omp_num_threads=TestProject.omp_num_threads)
 def omp_op(job):
     pass
 
 
 @TestProject.operation
-@flow.directives(nranks=TestProject.N, omp_num_threads=TestProject.N)
+@flow.directives(nranks=TestProject.nranks, omp_num_threads=TestProject.omp_num_threads)
 def hybrid_op(job):
     pass
 
 
 @TestProject.operation
-@flow.directives(ngpu=TestProject.N)
+@flow.directives(ngpu=TestProject.ngpu)
 def gpu_op(job):
     pass
 
 
 @TestProject.operation
-@flow.directives(ngpu=TestProject.N, nranks=TestProject.N)
+@flow.directives(ngpu=TestProject.ngpu, nranks=TestProject.nranks)
 def mpi_gpu_op(job):
     pass
 
