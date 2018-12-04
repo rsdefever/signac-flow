@@ -1,10 +1,27 @@
-# Copyright (c) 2017 The Regents of the University of Michigan
+# Copyright (c) 2018 The Regents of the University of Michigan
 # All rights reserved.
 # This software is licensed under the BSD 3-Clause License.
-"""Environments for incite supercomputers."""
-from ..environment import DefaultTorqueEnvironment
+"""Environments for INCITE supercomputers.
+
+http://www.doeleadershipcomputing.org/
+"""
+from ..environment import DefaultLSFEnvironment, DefaultTorqueEnvironment
 
 import math
+
+
+class SummitEnvironment(DefaultLSFEnvironment):
+    """Environment profile for the Summit supercomputer.
+
+    https://www.olcf.ornl.gov/summit/
+    """
+    hostname_pattern = r'.*\.summit\.olcf\.ornl\.gov'
+    template = 'summit.sh'
+
+
+class AscentEnvironment(SummitEnvironment):
+    """Environment profile for the Ascent supercomputer (Summit testing)."""
+    hostname_pattern = r'.*\.ascent\.olcf\.ornl\.gov'
 
 
 class TitanEnvironment(DefaultTorqueEnvironment):
