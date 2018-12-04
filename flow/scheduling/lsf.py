@@ -20,21 +20,22 @@ from .base import ClusterJob, JobStatus
 logger = logging.getLogger(__name__)
 
 
+def _parse_status(s):
+    if s in ['PEND', 'WAIT']:
+        return JobStatus.queued
+    elif s == 'RUN':
+        return JobStatus.active
+    elif s in ['SSUSP', 'USUSP', 'PSUSP']:
+        return JobStatus.held
+    elif s == 'DONE':
+        return JobStatus.inactive
+    elif s == 'EXIT':
+        return JobStatus.error
+    return JobStatus.registered
+
+
 def _fetch(user=None):
     "Fetch the cluster job status information from the LSF scheduler."
-
-    def parse_status(s):
-        if s in ['PEND', 'WAIT']:
-            return JobStatus.queued
-        elif s == 'RUN':
-            return JobStatus.active
-        elif s in ['SSUSP', 'USUSP', 'PSUSP']:
-            return JobStatus.held
-        elif s == 'DONE':
-            return JobStatus.inactive
-        elif s == 'EXIT':
-            return JobStatus.error
-        return JobStatus.registered
 
     if user is None:
         user = getpass.getuser()
@@ -50,7 +51,7 @@ def _fetch(user=None):
             raise
         else:
             raise RuntimeError("LSF not available.")
-    except json.decoder.JSONDecodeError as error:
+    except json.decoder.JSONDecodeError:
         raise RuntimeError("Could not parse LSF JSON output.")
 
     for record in result['RECORDS']:
@@ -63,10 +64,11 @@ class LSFJob(ClusterJob):
     def __init__(self, record):
         self.record = record
         self._job_id = record['JOBID']
-        self._status = parse_status(record['STAT'])
+        self._status = _parse_status(record['STAT'])
 
     def name(self):
         return self.record['JOB_NAME']
+
 
 class LSFScheduler(Scheduler):
     """Implementation of the abstract Scheduler class for LSF schedulers.
