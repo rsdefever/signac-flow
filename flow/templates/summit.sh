@@ -2,19 +2,12 @@
 {# Last updated on 2018-12-03 by bdice@bradleydice.com #}
 {% set mpiexec = "jsrun" %}
 {% extends "lsf.sh" %}
-{% block tasks %}
-{% set threshold = 0 if force else 0.9 %}
 {% set cores_per_node = 42 %}
 {% set gpus_per_node = 6 %}
-{% set nn_cpu = np_global|calc_num_nodes(cores_per_node) %}
-{% if ngpu_global > 0 %}
-{% set nn_gpu = ngpu_global|calc_num_nodes(gpus_per_node) %}
-{% set nn = nn|default((nn_cpu, nn_gpu)|max, true) %}
-[% raise "Need {{ ngpu_global }} GPUS!" %}
-#BSUB -nnodes {{ nn|check_utilization(ngpu_global, gpus_per_node, threshold) }}
-{% else %}
-#BSUB -nnodes {{ nn_cpu|check_utilization(np_global, cores_per_node, threshold) }}
-{% endif %}
+{% block tasks %}
+{% set threshold = 0 if force else 0.9 %}
+{% set nn = operations|map('guess_resource_sets', cores_per_node, gpus_per_node)|calc_num_nodes(cores_per_node, gpus_per_node) %}
+#BSUB -nnodes {{ nn }}
 {% endblock %}
 {% block header %}
 {{ super() -}}
@@ -22,4 +15,17 @@
 {% if project %}
 #BSUB -P {{ project }}
 {% endif %}
+#BSUB -alloc_flags "smt1"
+{% endblock %}
+{% block body %}
+{% set cmd_suffix = cmd_suffix|default('') ~ (' &' if parallel else '') %}
+{% for operation in operations %}
+{% set mpi_prefix = "jsrun " ~ operation|guess_resource_sets(cores_per_node, gpus_per_node)|jsrun_options ~ " -d packed -b packed:1 " %}
+
+# {{ "%s"|format(operation) }}
+{% if operation.directives.omp_num_threads %}
+export OMP_NUM_THREADS={{ operation.directives.omp_num_threads }}
+{% endif %}
+{{ mpi_prefix }}{{ cmd_prefix }}{{ operation.cmd }}{{ cmd_suffix }}
+{% endfor %}
 {% endblock %}

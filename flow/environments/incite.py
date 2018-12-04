@@ -8,6 +8,7 @@ http://www.doeleadershipcomputing.org/
 from ..environment import DefaultLSFEnvironment, DefaultTorqueEnvironment
 
 import math
+from fractions import gcd
 
 
 class SummitEnvironment(DefaultLSFEnvironment):
@@ -17,6 +18,49 @@ class SummitEnvironment(DefaultLSFEnvironment):
     """
     hostname_pattern = r'.*\.summit\.olcf\.ornl\.gov'
     template = 'summit.sh'
+
+    def guess_resource_sets(operation, cores_per_node, gpus_per_node):
+        nranks = operation.directives.get('nranks', 1)
+        ngpu = operation.directives.get('ngpu', 0)
+        if nranks > cores_per_node or ngpu > gpus_per_node:
+            nsets = max(math.ceil(nranks / cores_per_node),
+                        math.ceil(ngpu / gpus_per_node))
+            gpus_per_set = int(ngpu / nsets)
+            ranks_per_set = max(int(nranks / nsets), 1)
+        else:
+            nsets = 1
+            ranks_per_set = nranks
+            gpus_per_set = ngpu
+        factor = gcd(ranks_per_set, gpus_per_set)
+        nsets *= factor
+        ranks_per_set //= factor
+        gpus_per_set //= factor
+        return nsets, ranks_per_set, gpus_per_set
+
+    def jsrun_options(resource_set):
+        nsets, cores, gpus = resource_set
+        return '-n {} -a {} -c {} -g {}'.format(nsets, cores, cores, gpus)
+
+
+    def calc_num_nodes(resource_sets, cores_per_node, gpus_per_node):
+        cores_used = 0
+        gpus_used = 0
+        nodes_used = 0
+        for nsets, cores, gpus in resource_sets:
+            for i in range(nsets):
+                cores_used += cores
+                gpus_used += gpus
+                if cores_used > cores_per_node or gpus_used > gpus_per_node:
+                    nodes_used += 1
+                    cores_used = max(0, cores_used - cores_per_node)
+                    gpus_used = max(0, gpus_used - gpus_per_node)
+        if cores_used > 0 or gpus_used > 0:
+            nodes_used += 1
+        return nodes_used
+
+    filters = {'calc_num_nodes': calc_num_nodes,
+               'jsrun_options': jsrun_options,
+               'guess_resource_sets': guess_resource_sets}
 
 
 class AscentEnvironment(SummitEnvironment):

@@ -614,6 +614,10 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if 'max' not in self._template_environment_.filters:    # for jinja2 < 2.10
             self._template_environment_.filters['max'] = max
 
+        # Custom template filters from environment
+        for filter_name, filter_function in getattr(self._environment, 'filters', {}).items():
+            self._template_environment_.filters[filter_name] = filter_function
+
     @property
     def _template_environment(self):
         if self._template_environment_ is None:
