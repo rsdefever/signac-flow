@@ -41,7 +41,6 @@ class SummitEnvironment(DefaultLSFEnvironment):
         nsets, cores, gpus = resource_set
         return '-n {} -a {} -c {} -g {}'.format(nsets, cores, cores, gpus)
 
-
     def calc_num_nodes(resource_sets, cores_per_node, gpus_per_node):
         cores_used = 0
         gpus_used = 0
