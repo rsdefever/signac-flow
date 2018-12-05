@@ -8,10 +8,10 @@
 {% if ngpu_global and 'gpu' not in partition %}
 {% raise "Requesting GPUs requires a gpu partition!" %}
 {% endif %}
-{% if partition == 'gpu' %}
 {% set nn_cpu = np_global|calc_num_nodes(24) %}
-{% set nn_gpu = ngpu_global|calc_num_nodes(4) %}
+{% set nn_gpu = ngpu_global|calc_num_nodes(4) if 'gpu' in partition else 0 %}
 {% set nn = nn|default((nn_cpu, nn_gpu)|max, true) %}
+{% if partition == 'gpu' %}
 #SBATCH --nodes={{ nn|check_utilization(ngpu_global, 4, threshold) }}
 #SBATCH --gres=gpu:p100:{{ (ngpu_global, 4)|min }}
 {% elif partition == 'gpu-shared' %}
