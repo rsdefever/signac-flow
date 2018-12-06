@@ -19,28 +19,26 @@ class SummitEnvironment(DefaultLSFEnvironment):
     hostname_pattern = r'.*\.summit\.olcf\.ornl\.gov'
     template = 'summit.sh'
 
+    @staticmethod
     def guess_resource_sets(operation, cores_per_node, gpus_per_node):
         nranks = operation.directives.get('nranks', 1)
         ngpu = operation.directives.get('ngpu', 0)
-        if nranks > cores_per_node or ngpu > gpus_per_node:
-            nsets = max(math.ceil(nranks / cores_per_node),
-                        math.ceil(ngpu / gpus_per_node))
-            gpus_per_set = int(ngpu / nsets)
-            ranks_per_set = max(int(nranks / nsets), 1)
-        else:
-            nsets = 1
-            ranks_per_set = nranks
-            gpus_per_set = ngpu
+        nsets = max(math.ceil(nranks / cores_per_node),
+                    math.ceil(ngpu / gpus_per_node))
+        gpus_per_set = ngpu // nsets
+        ranks_per_set = max(nranks // nsets, 1)  # Require one core per set
         factor = gcd(ranks_per_set, gpus_per_set)
         nsets *= factor
         ranks_per_set //= factor
         gpus_per_set //= factor
         return nsets, ranks_per_set, gpus_per_set
 
+    @staticmethod
     def jsrun_options(resource_set):
         nsets, cores, gpus = resource_set
         return '-n {} -a {} -c {} -g {}'.format(nsets, cores, cores, gpus)
 
+    @staticmethod
     def calc_num_nodes(resource_sets, cores_per_node, gpus_per_node):
         cores_used = 0
         gpus_used = 0

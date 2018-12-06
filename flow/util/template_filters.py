@@ -23,7 +23,7 @@ def format_timedelta(delta, style='HH:MM:SS'):
     elif style == 'HH:MM':
         return "{:0>2}:{:0>2}".format(hours, minutes)
     else:
-        raise NotImplementedError('Unsupported style in format_timedelta.')
+        raise ValueError('Unsupported style in format_timedelta.')
 
 
 def with_np_offset(operations):
