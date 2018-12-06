@@ -15,12 +15,11 @@
 {% if project %}
 #BSUB -P {{ project }}
 {% endif %}
-#BSUB -alloc_flags "smt1"
 {% endblock %}
 {% block body %}
 {% set cmd_suffix = cmd_suffix|default('') ~ (' &' if parallel else '') %}
 {% for operation in operations %}
-{% set mpi_prefix = "jsrun " ~ operation|guess_resource_sets(cores_per_node, gpus_per_node)|jsrun_options ~ " -d packed -b packed:1 " %}
+{% set mpi_prefix = "jsrun " ~ operation|guess_resource_sets(cores_per_node, gpus_per_node)|jsrun_options ~ " -d packed -b rs " %}
 
 # {{ "%s"|format(operation) }}
 {% if operation.directives.omp_num_threads %}
