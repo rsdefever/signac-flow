@@ -33,6 +33,7 @@ from .scheduling.torque import TorqueScheduler
 from .scheduling.simple_scheduler import SimpleScheduler
 from .scheduling.fakescheduler import FakeScheduler
 from .util import config as flow_config
+from .util.template_filters import format_timedelta
 from .errors import SubmitError
 from .errors import NoSchedulerError
 
@@ -100,19 +101,6 @@ def setup(py_modules, **attrs):
         py_modules=py_modules,
         cmdclass={'install': InstallAndConfig},
         **attrs)
-
-
-def format_timedelta(delta, style="HH:MM:SS"):
-    "Format a time delta for interpretation by schedulers."
-    hours, r = divmod(delta.seconds, 3600)
-    minutes, seconds = divmod(r, 60)
-    hours += delta.days * 24
-    if style == 'HH:MM:SS':
-        return "{:0>2}:{:0>2}:{:0>2}".format(hours, minutes, seconds)
-    elif style == 'HH:MM':
-        return "{:0>2}:{:0>2}".format(hours, minutes)
-    else:
-        raise NotImplementedError('Unsupported style in format_timedelta.')
 
 
 class ComputeEnvironmentType(type):
