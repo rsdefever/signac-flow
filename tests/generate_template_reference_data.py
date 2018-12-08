@@ -120,7 +120,16 @@ def init(project):
                     'parallel': [False, True],
                     'bundle': [['mpi_op', 'omp_op']],
                 }
-            ]
+            ],
+            'environments.incite.SummitEnvironment': [
+                {
+                    'walltime': [None, 1],
+                },
+                {
+                    'parallel': [False, True],
+                    'bundle': [['mpi_op']],
+                }
+            ],
         }
 
     for environment, parameter_combinations in environments.items():
@@ -203,15 +212,21 @@ def get_masked_flowproject(p):
     fp.config.project_dir = PROJECT_DIRECTORY
     return fp
 
+def add_environment_filters(p, env):
+    for filter_name, filter_function in getattr(env, 'filters', {}).items():
+        fp._template_environment_.filters[filter_name] = filter_function
+
 def main(args):
     # If the ARCHIVE_DIR already exists, only recreate if forced.
     if os.path.exists(ARCHIVE_DIR):
         if args.force:
             os.unlink(ARCHIVE_DIR)
         else:
+            print('The archive directory {} already exists. Use --force to '
+                  'force template re-generation.'.format(ARCHIVE_DIR))
             return
 
-    # NOTE: We should replace the below line with 
+    # NOTE: We should replace the below line with
     # with signac.TemporaryProject(name=PROJECT_NAME, cls=TestProject) as fp:
     # once the next version of signac is released, and we can then remove
     # the additional FlowProject instantiation below
@@ -223,6 +238,10 @@ def main(args):
             with job:
                 kwargs = job.statepoint()
                 env = get_nested_attr(flow, kwargs['environment'])
+                # Reset the template filters to include environment filters
+                fp._setup_template_environment()
+                fp._set_standard_filters()
+                fp._set_environment_filters(env)
                 parameters = kwargs['parameters']
                 if 'bundle' in parameters:
                     bundle = parameters.pop('bundle')

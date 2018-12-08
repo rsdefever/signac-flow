@@ -180,6 +180,7 @@ class ComputeEnvironment(with_metaclass(ComputeEnvironmentType)):
     hostname_pattern = None
     submit_flags = None
     template = 'base_script.sh'
+    filters = {}
 
     @classmethod
     def script(cls, **kwargs):

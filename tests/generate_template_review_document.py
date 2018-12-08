@@ -99,8 +99,12 @@ def process_job(document, job):
     else:
         for fn, h in name_map.items():
             document.add_heading('Operation: {}'.format(h), level=3)
-            with open(job.fn(fn)) as fr:
-                p = document.add_paragraph(fr.read(), style='Code')
+            if job.isfile(fn):
+                with open(job.fn(fn)) as fr:
+                    p = document.add_paragraph(fr.read(), style='Code')
+            else:
+                print('{}: {} is missing.'.format(job, fn))
+                p = document.add_paragraph('Script {} not present!'.format(job.fn(fn)))
 
     document.add_page_break()
 
@@ -116,6 +120,7 @@ def main():
     environments = project.detect_schema()['environment'][str]
     for env in sorted(environments):
         env_name = env.split('.')[-1]
+        print('Generating review document for {}...'.format(env_name))
         document = docx.Document()
 
         # Add code style
@@ -146,7 +151,6 @@ def main():
 
         fn = os.path.join(DOC_DIR, "{env}.docx".format(env=env_name))
         document.save(fn)
-        break
 
 if __name__ == "__main__":
     main()

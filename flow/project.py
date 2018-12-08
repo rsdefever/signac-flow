@@ -602,7 +602,18 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
             trim_blocks=True,
             extensions=[TemplateError])
 
-        # Setup standard filters that can be used to format context variables.
+        # Add template filters
+        self._set_standard_filters()
+        self._set_environment_filters(self._environment)
+
+    @property
+    def _template_environment(self):
+        if self._template_environment_ is None:
+            self._setup_template_environment()
+        return self._template_environment_
+
+    def _set_standard_filters(self):
+        # Set up standard filters that can be used to format context variables.
         self._template_environment_.filters['format_timedelta'] = tf.format_timedelta
         self._template_environment_.filters['identical'] = tf.identical
         self._template_environment_.filters['with_np_offset'] = tf.with_np_offset
@@ -614,15 +625,10 @@ class FlowProject(six.with_metaclass(_FlowProjectClass, signac.contrib.Project))
         if 'max' not in self._template_environment_.filters:    # for jinja2 < 2.10
             self._template_environment_.filters['max'] = max
 
-        # Custom template filters from environment
-        for filter_name, filter_function in getattr(self._environment, 'filters', {}).items():
-            self._template_environment_.filters[filter_name] = filter_function
-
-    @property
-    def _template_environment(self):
-        if self._template_environment_ is None:
-            self._setup_template_environment()
-        return self._template_environment_
+    def _set_environment_filters(self, env):
+        # Add environment-specific filters that can be used to format context variables.
+        for filter_name, filter_function in getattr(env, 'filters', {}).items():
+            self._template_environment_.filters[filter_name] = filter_function.__func__
 
     def _get_standard_template_context(self):
         "Return the standard templating context for run and submission scripts."

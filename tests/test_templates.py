@@ -42,6 +42,10 @@ class BaseTemplateTest(object):
             fp = gen.get_masked_flowproject(p)
             fp.import_from(
                 origin=gen.ARCHIVE_DIR)
+            # Reset the template filters to include environment filters
+            fp._setup_template_environment()
+            fp._set_standard_filters()
+            fp._set_environment_filters(self.env)
 
             jobs = fp.find_jobs(dict(environment=self.env_name()))
             if not len(jobs):
