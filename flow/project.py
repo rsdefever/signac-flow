@@ -213,6 +213,47 @@ class _post(_condition):
             return all(c(job) for c in post_conditions)
         return cls(metacondition)
 
+    @classmethod
+    def function_ran(cls, func):
+        """Condition that is True when the function's source code changed.
+
+        This condition function keeps track of the operation function's source
+        code and stores a hash value in the job document after execution.
+        A function will therefore run whenever the source code has changed.
+
+        Example:
+
+            @Project.operation
+            @Project.post.function_ran
+            def hello(job):
+                job.doc.hello = True
+
+        This function will definitely run at least once, and then every time
+        the source code of the hello function is changed.
+        """
+        # Gather function metadata to calculate unique name.
+        fn = inspect.getmodule(func).__file__
+        src = inspect.getsource(func)
+        name = '/'.join((fn, func.__name__))
+
+        # Define post-condition to be evaluated
+        def _function_ran(job):
+            return job.doc.get('_flow_operation_source_code_hash', dict()).get(name) == calc_id(src)
+
+        # Install post-condition
+        post_conditions = getattr(func, '_flow_post', list())
+        post_conditions.insert(0, _function_ran)
+        func._flow_post = post_conditions
+
+        # Wrap operation function to install post-execution hook.
+        @functools.wraps(func)
+        def wrapper(job, *args, **kwargs):
+            ret = func(job, *args, **kwargs)
+            job.doc.setdefault('_flow_operation_source_code_hash', dict())[name] = calc_id(src)
+            return ret
+
+        return wrapper
+
 
 def make_bundles(operations, size=None):
     """Utility function for the generation of bundles.
