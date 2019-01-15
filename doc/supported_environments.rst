@@ -5,17 +5,28 @@ Supported Environments
 ======================
 
 The **signac-flow** package streamlines the :ref:`submission <cluster-submission>` of job-operations to a supercomputer scheduling system.
+We use a different template for the different schedulers and systems, but all templates are extending the :ref:`base-script`.
+
+.. _base-script: supported_environments/base
+
+.. toctree::
+    :hidden:
+
+    supported_environments/base
+
 The package currently ships with drivers for:
 
 .. toctree::
 
    supported_environments/slurm
    supported_environments/torque
+   supported_environments/lsf
 
 Any supercomputing system utilizing these schedulers is supported out of the box.
 In addition, the package provides specialized submission profiles for the following environments:
 
 .. toctree::
+   supported_environments/summit
    supported_environments/titan
    supported_environments/eos
    supported_environments/stampede2
