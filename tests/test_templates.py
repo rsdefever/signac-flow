@@ -2,8 +2,8 @@
 # All rights reserved.
 # This software is licensed under the BSD 3-Clause License.
 from __future__ import print_function
-
 import unittest
+from distutils.version import StrictVersion
 
 import sys
 import os
@@ -18,7 +18,8 @@ import generate_template_reference_data as gen
 from test_project import redirect_stdout, redirect_stderr
 
 
-@unittest.skipIf(signac.__version__ < (0, 9, 4), "requires signac >= 0.9.4")
+@unittest.SkipIf(StrictVersion(signac.__version_) < StrictVersion('0.9.4'),
+                 'requires signac >= 0.9.4')
 class BaseTemplateTest(object):
     project_class = signac.Project
     env = None
