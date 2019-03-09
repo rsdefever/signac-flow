@@ -25,7 +25,8 @@ jobs:
 
 
   test-3.7: &test-template
-    signac_version: "master"
+    environment:
+      SIGNAC_VERSION: master
     docker:
       - image: circleci/python:3.7
 
@@ -40,7 +41,7 @@ jobs:
             mkdir -p ./venv
             python -m virtualenv ./venv
             . venv/bin/activate
-            pip install git+ssh://git@github.com/glotzerlab/signac.git@"{{signac_version}}"
+            pip install git+ssh://git@github.com/glotzerlab/signac.git@${SIGNAC_VERSION}
             pip install -r requirements.txt
             pip install -U coverage mock
 
@@ -57,13 +58,16 @@ jobs:
 
   test-3.7-signac-0.7:
     <<: *test-template
-    signac_version: "v0.7.0"
+    environment:
+      SIGNAC_VERSION: "v0.7.0"
   test-3.7-signac-0.8:
     <<: *test-template
-    signac_version: "v0.8.0"
+    environment:
+      SIGNAC_VERSION: "v0.8.0"
   test-3.7-signac-0.9:
     <<: *test-template
-    signac_version: "v0.9.0"
+    environment:
+      SIGNAC_VERSION: "v0.9.0"
   test-3.6:
     <<: *test-template
     docker:
