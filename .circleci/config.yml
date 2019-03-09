@@ -105,12 +105,12 @@ workflows:
       - test-3.7:
           requires:
             - pre-test-checks
-      - test-3.7-signac-0.7:
+      - test-3.7-signac-0.7.0:
           requires:
             - test-3.7
-      - test-3.7-signac-0.8:
+      - test-3.7-signac-0.8.4:
           requires:
             - test-3.7
-      - test-3.7-signac-0.9:
+      - test-3.7-signac-0.9.0:
           requires:
             - test-3.7
