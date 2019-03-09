@@ -40,7 +40,7 @@ jobs:
             mkdir -p ./venv
             python -m virtualenv ./venv
             . venv/bin/activate
-            pip install git+ssh://git@github.com/glotzerlab/signac.git@{{signac_version}}
+            pip install git+ssh://git@github.com/glotzerlab/signac.git@"{{signac_version}}"
             pip install -r requirements.txt
             pip install -U coverage mock
 
