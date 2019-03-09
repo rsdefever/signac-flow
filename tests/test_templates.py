@@ -18,7 +18,7 @@ import generate_template_reference_data as gen
 from test_project import redirect_stdout, redirect_stderr
 
 
-@unittest.SkipIf(StrictVersion(signac.__version_) < StrictVersion('0.9.4'),
+@unittest.skipIf(StrictVersion(signac.__version__) < StrictVersion('0.9.4'),
                  'requires signac >= 0.9.4')
 class BaseTemplateTest(object):
     project_class = signac.Project
