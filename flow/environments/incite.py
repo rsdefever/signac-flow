@@ -51,7 +51,7 @@ class SummitEnvironment(DefaultLSFEnvironment):
         cpus_per_task = max(operation.directives.get('omp_num_threads', 1), 1)
         np = operation.directives.get('np', ntasks * cpus_per_task)
         ngpu = operation.directives.get('ngpu', 0)
-        if np % cores_per_node != 0 and (ngpu == 0 or ngpu == np):
+        if np % cores_per_node != 0 and ngpu % np == 0:
             # fill the nodes using small resource sets
             # threads are never split across resource sets
             nsets = np//cpus_per_task
