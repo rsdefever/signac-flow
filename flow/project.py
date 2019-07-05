@@ -1570,6 +1570,8 @@ class FlowProject(six.with_metaclass(_FlowProjectClass,
             self.run_operations(operations, pretend=pretend,
                                 np=np, timeout=timeout, progress=progress)
 
+        return select.total_execution_count
+
     def _generate_operations(self, cmd, jobs, requires=None):
         "Generate job-operations for a given 'direct' command."
         for job in jobs:
