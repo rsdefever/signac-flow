@@ -406,7 +406,7 @@ class ProjectClassTest(BaseProjectTest):
         project = A(self.mock_project().config)
         for job in project:
             job.doc.np = 3
-            next_op = project.next_operation(job, mode='exec')
+            next_op = project.next_operation(job)
             self.assertIn('mpirun -np 3 python', next_op.cmd)
             break
 
@@ -563,7 +563,7 @@ class ProjectTest(BaseProjectTest):
     def test_script(self):
         project = self.mock_project()
         for job in project:
-            script = project.script(project.next_operations(job, mode='exec'))
+            script = project.script(project.next_operations(job))
             if job.sp.b % 2 == 0:
                 self.assertIn(str(job), script)
                 self.assertIn('echo "hello"', script)
@@ -583,7 +583,7 @@ class ProjectTest(BaseProjectTest):
             file.write("THIS IS A CUSTOM SCRIPT!\n")
             file.write("{% endblock %}\n")
         for job in project:
-            script = project.script(project.next_operations(job, mode='exec'))
+            script = project.script(project.next_operations(job))
             self.assertIn("THIS IS A CUSTOM SCRIPT", script)
             if job.sp.b % 2 == 0:
                 self.assertIn(str(job), script)
@@ -653,10 +653,9 @@ class ExecutionProjectTest(BaseProjectTest):
             with switch_to_directory(project.root_directory()):
                 with redirect_stderr(output):
                     if StrictVersion(signac.__version__) < StrictVersion('0.9.4'):
-                        project.run(list(project.find_jobs(dict(a=0))),
-                                    mode='exec')
+                        project.run(list(project.find_jobs(dict(a=0))))
                     else:
-                        project.run(project.find_jobs(dict(a=0)), mode='exec')
+                        project.run(project.find_jobs(dict(a=0)))
         output.seek(0)
         output.read()
         even_jobs = [job for job in project if job.sp.b % 2 == 0]
