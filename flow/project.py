@@ -1591,9 +1591,9 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
 
         # Execute without forking if possible...
         if not operation.directives.get('fork') \
-            and timeout is None \
-            and operation.name in self._operation_functions \
-            and operation.directives.get('executable', sys.executable) == sys.executable:
+                and timeout is None \
+                and operation.name in self._operation_functions \
+                and operation.directives.get('executable', sys.executable) == sys.executable:
             logger.debug("Able to optimize execution of operation '{}'.".format(operation))
             self._operation_functions[operation.name](operation.job)
         else:   # need to fork
