@@ -8,6 +8,11 @@ The numbers in brackets denote the related GitHub issue and/or pull request.
 next
 ----
 
+Added
++++++
+
+- Add 'fork' directive to enforce the execution of operations within a subprocess.
+
 Removed
 +++++++
 - Drop support for Python version 2.7.
@@ -30,6 +35,7 @@ Added
 - Add a testing module to easily initialize a test project (#130).
 - Enable option to always show the full traceback with ``show_traceback = on`` within the ``[flow]`` section of the signac configuration (#61, #144).
 - Add full launcher support for job submission on XSEDE Stampede2 for large parallel single processor jobs (#85, #91).
+- Fix erroneous line in the torque submission template (#126).
 
 Fixes
 +++++
