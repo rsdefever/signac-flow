@@ -99,6 +99,19 @@ def with_job(func):
     return decorated
 
 
+def fork(func):
+    """Specifies that ``func`` must be executed within a forked process.
+
+    Functions that require their own process and should not be executed within the
+    same process as the interpreter should be decorated with `@fork`.
+
+    This is useful for example for parallelized operations, such as functions
+    that use `multiprocessing.Pool`.
+    """
+    setattr(func, '_flow_fork', True)
+    return func
+
+
 class directives(object):
     """Decorator for operation functions to provide additional execution directives.
 
@@ -253,4 +266,4 @@ def run(parser=None):
                 result.next(args.timeout)
 
 
-__all__ = ['cmd', 'directives', 'run']
+__all__ = ['cmd', 'fork', 'directives', 'run']

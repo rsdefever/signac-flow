@@ -180,10 +180,11 @@ class JobOperation(object):
     """
     MAX_LEN_ID = 100
 
-    def __init__(self, name, job, cmd, directives=None, np=None):
+    def __init__(self, name, job, cmd, fork=False, directives=None, np=None):
         self.name = name
         self.job = job
         self.cmd = cmd
+        self.fork = fork
         if directives is None:
             directives = dict()  # default argument
         else:
@@ -368,12 +369,13 @@ class FlowOperation(object):
         :class:`dict`
     """
 
-    def __init__(self, cmd, pre=None, post=None, directives=None):
+    def __init__(self, cmd, pre=None, post=None, directives=None, fork=False):
         if pre is None:
             pre = []
         if post is None:
             post = []
         self._cmd = cmd
+        self.fork = fork
         self.directives = directives
 
         self._prereqs = [FlowCondition(cond) for cond in pre]
@@ -1590,13 +1592,18 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         logger.info("Execute operation '{}'...".format(operation))
 
         # Execute without forking if possible...
-        if not operation.directives.get('fork') \
+        if not operation.fork \
                 and timeout is None \
                 and operation.name in self._operation_functions \
                 and operation.directives.get('executable', sys.executable) == sys.executable:
-            logger.debug("Able to optimize execution of operation '{}'.".format(operation))
+            logger.debug(
+                "Executing operation '{}' with current interpreter "
+                "process ({}).".format(operation, os.getpid()))
             self._operation_functions[operation.name](operation.job)
         else:   # need to fork
+            logger.debug(
+                "Forking to execute operation '{}' with "
+                "cmd '{}'.".format(operation, operation.cmd))
             subprocess.call(operation.cmd, shell=True, timeout=timeout)
 
     def run(self, jobs=None, names=None, pretend=False, np=None, timeout=None, num=None,
@@ -2376,7 +2383,8 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         for name, op in self.operations.items():
             if only_eligible and not op.eligible(job):
                 continue
-            yield JobOperation(name=name, job=job, cmd=op(job), directives=op.directives)
+            yield JobOperation(
+                name=name, job=job, cmd=op(job), fork=op.fork, directives=op.directives,)
 
     def next_operations(self, *jobs):
         """Determine the next eligible operations for jobs.
@@ -2498,10 +2506,8 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
                     "Repeat definition of operation with name '{}'.".format(name))
 
             # Extract pre/post conditions and directives from function:
-            params = {
-                'pre': pre_conditions.get(func, None),
-                'post': post_conditions.get(func, None),
-                'directives': getattr(func, '_flow_directives', None)}
+            params = {key: getattr(func, '_flow_{}'.format(key), None)
+                      for key in ('pre', 'post', 'fork', 'directives')}
 
             # Construct FlowOperation:
             if getattr(func, '_flow_cmd', False):
