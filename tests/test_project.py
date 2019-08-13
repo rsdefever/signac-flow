@@ -767,6 +767,8 @@ class ExecutionProjectTest(BaseProjectTest):
                         for job in project])
         self.project_class = _project
 
+    @unittest.skipIf(StrictVersion(signac.__version__) < StrictVersion('0.9.1'),
+                     'requires signac >=0.9.1')
     def test_run_fork(self):
         project = self.mock_project()
         output = StringIO()
