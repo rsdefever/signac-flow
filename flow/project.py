@@ -418,13 +418,13 @@ class FlowGroup(object):
         :class:`dict` keys of :class:`str` and values of :class:`FlowOperation`
     :param run_cmd:
         The command to execute group using flow's `run` function; should be a
-        function of an entrypoint and optionally a job.
+        function of a FlowGroup, entrypoint, and optionally a job.
     :type run_cmd:
         callable
     :param exec_cmd:
         The command to execute a group using flow's `exec` function;
-        should be a function of an entrypoint and a job. Limited to singleton
-        groups.
+        should be a function of a FlowGroup, entrypoint, and a job. Limited to
+        singleton groups.
     :type exec_cmd:
         callable
     :param directives:
@@ -511,9 +511,9 @@ class FlowGroup(object):
         "Return the string forming the command for the execution of this group."
         entrypoint = self._find_entrypoint(path, entrypoint, job)
         if mode == 'run':
-            return self._run_cmd(self, entrypoint, job) + ' ' + self.options
+            return self._run_cmd(entrypoint, job) + ' ' + self.options
         elif mode == 'exec':
-            return self._exec_cmd(self, entrypoint, job)
+            return self._exec_cmd(entrypoint, job)
         else:
             raise ValueError("Unknown mode '{}'.".format(mode))
 
@@ -579,8 +579,7 @@ class FlowGroup(object):
                             self.name,
                             job,
                             cmd=self(path, entrypoint, job, mode),
-                            directives=dict(self.directives),
-                            project=job._project)
+                            directives=dict(self.directives))
 
 
 class _FlowProjectClass(type):
@@ -725,13 +724,28 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         from the environment.
     :type config:
         A signac config object.
+    :param path:
+        A filepath location that points to a file calling `FlowProject.main()`.
+        Does not need to be set unless not using the `main` interface.
+    :type path:
+        str
+    :param entrypoint:
+        The executable python interpreter appended with a filepath that points
+        to a file calling `FlowProject.main()`.  Does not need to be set unless
+        not using the `main` interface.
+    :type entrypoint:
+        str
     """
 
-    def __init__(self, config=None, environment=None):
+    def __init__(self, config=None, environment=None, path=None, entrypoint=None):
         super(FlowProject, self).__init__(config=config)
 
         # Associate this class with a compute environment.
         self._environment = environment or get_environment()
+
+        # Assign variables that give script location information
+        self.path = path
+        self.entrypoint = entrypoint
 
         # The standard local template directory is a directory called 'templates' within
         # the project root directory. This directory may be specified with the 'template_dir'
@@ -1874,6 +1888,11 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         if jobs is None:
             jobs = self
 
+        # Attempt to allow not setting path or entrypoint explicitly.
+        if self.entrypoint is None:
+            if self.path is None:
+                self.path = ''
+
         # Change group names to their constituent operations
         extended_names = []
         if names is not None:
@@ -1882,7 +1901,7 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
                     "The names argument of FlowProject.run() must be a sequence of strings, "
                     "not a string.")
 
-            groups = self._gather_FlowGroups(names)
+            groups = self._gather_flow_groups(names)
             for group in groups:
                 extended_names.extend(list(group.operations.keys()))
             names = set(extended_names)
@@ -1987,7 +2006,7 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             cmd_ = cmd.format(job=job)
             yield JobOperation(name=cmd_.replace(' ', '-'), cmd=cmd_, job=job)
 
-    def _gather_FlowGroups(self, names=None):
+    def _gather_flow_groups(self, names=None):
         operations = {}
         # if no names are selected try all singleton groups
         names = names if names is not None else self._operations.keys()
@@ -2013,10 +2032,12 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
 
     def _get_submission_operations(self, jobs, names=None, mode='run'):
         for job in jobs:
-            for group in self._gather_FlowGroups(names):
+            for group in self._gather_flow_groups(names):
                 if group.eligible(job) and self.eligible_for_submission(group,
                                                                         job):
-                    yield group.create_job_operation(job, mode=mode, index=0)
+                    yield group.create_job_operation(job, path=self.path,
+                                                     entrypoint=self.entrypoint,
+                                                     mode=mode, index=0)
 
     def _get_pending_operations(self, jobs, operation_names=None):
         "Get all pending operations for the given selection."
@@ -2637,7 +2658,9 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             group = self._groups[name]
             if only_eligible and not group.eligible(job):
                 continue
-            yield group.create_job_operation(job=job, mode='exec', index=0)
+            yield group.create_job_operation(job=job, path=self.path,
+                                             entrypoint=self.entrypoint,
+                                             mode='exec', index=0)
 
     def next_operations(self, *jobs):
         """Determine the next eligible operations for jobs.
@@ -3053,10 +3076,10 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
 
             $ python my_project.py --help
         """
-        if os.path.realpath(self._path) != os.path.realpath(inspect.stack()[1][1]):
-            raise RuntimeError(
-                "The FlowProject.main() class must be called from the same module "
-                "where the FlowProject instance was initialized.")
+        # Find file that main is called in
+        if self.entrypoint is None:
+            if self.path is None:
+                self.path = os.path.realpath(inspect.stack()[-1].filename)
 
         if parser is None:
             parser = argparse.ArgumentParser()
