@@ -1095,7 +1095,7 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             eligible = False if completed else group.eligible(job)
             scheduler_status = cached_status.get(group._generate_id(job),
                                                  JobStatus.unknown)
-            for operation in group.operations.keys():
+            for operation in sorted(group.operations.keys()):
                 if scheduler_status >= status_dict[operation]['scheduler_status']:
                     status_dict[operation] = {
                             'scheduler_status': scheduler_status,
