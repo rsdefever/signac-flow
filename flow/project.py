@@ -2659,7 +2659,7 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
 
     def _job_operations(self, job, only_eligible):
         "Yield instances of JobOperation constructed for specific jobs."
-        for name in self.operations.keys():
+        for name in sorted(self.operations):
             group = self._groups[name]
             if only_eligible and not group.eligible(job):
                 continue
