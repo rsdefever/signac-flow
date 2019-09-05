@@ -172,9 +172,10 @@ class JobOperation(object):
     :type job:
         :py:class:`signac.Job`.
     :param cmd:
-        The command that executes this operation.
+        The command that executes this operation. Can be a function that when
+        evaluated returns a string.
     :type cmd:
-        str
+        unevaluated function or str
     :param directives:
         A dictionary of additional parameters that provide instructions on how
         to execute this operation, e.g., specifically required resources.
@@ -186,7 +187,7 @@ class JobOperation(object):
         self.id = id
         self.name = name
         self.job = job
-        self.cmd = cmd
+        self._cmd = cmd
 
         if directives is None:
             directives = dict()  # default argument
@@ -251,6 +252,13 @@ class JobOperation(object):
 
     def __eq__(self, other):
         return self.id == other.id
+
+    @property
+    def cmd(self):
+        if callable(self._cmd):
+            return self._cmd()
+        else:
+            return self._cmd
 
     def set_status(self, value):
         "Store the operation's status."
@@ -497,7 +505,7 @@ class FlowGroup(object):
         else:
             return '{} exec {} {}'.format(entrypoint, op.name, job).lstrip()
 
-    def __call__(self, entrypoint=None, job=None, mode='run'):
+    def _cmd(self, entrypoint=None, job=None, mode='run'):
         "Return the string forming the command for the execution of this group."
         entrypoint = self._determine_entrypoint(entrypoint, job)
         if mode == 'run':
@@ -572,10 +580,11 @@ class FlowGroup(object):
 
     def create_job_operation(self, entrypoint, job, mode='run', index=0):
         """Create a JobOperation object from the FlowGroup."""
+        uneval_cmd = functools.partial(self._cmd, entrypoint=entrypoint, job=job, mode=mode)
         return JobOperation(self._generate_id(job, index=index),
                             self.name,
                             job,
-                            cmd=self(entrypoint, job, mode),
+                            cmd=uneval_cmd,
                             directives=dict(self.directives))
 
 
@@ -1880,11 +1889,6 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         # If no jobs argument is provided, we run operations for all jobs.
         if jobs is None:
             jobs = self
-
-        # Attempt to allow not setting path or entrypoint explicitly.
-        if self.entrypoint is None:
-            if self.path is None:
-                self.path = ''
 
         # Change group names to their constituent operations
         extended_names = []
