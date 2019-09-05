@@ -458,9 +458,9 @@ class FlowGroup(object):
             self.options = options
 
         if operations is None:
-            self.operations = dict()
+            self.operations = OrderedDict()
         else:
-            self.operations = operations
+            self.operations = OrderedDict(operations)
 
         if directives is None:
             self.directives = dict()
