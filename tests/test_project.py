@@ -109,6 +109,7 @@ class MockEnvironment(ComputeEnvironment):
 
 class BaseProjectTest(unittest.TestCase):
     project_class = signac.Project
+    entrypoint = dict(path='')
 
     def setUp(self):
         self._tmp_dir = TemporaryDirectory(prefix='signac-flow_')
@@ -127,8 +128,7 @@ class BaseProjectTest(unittest.TestCase):
             for b in range(3):
                 project.open_job(dict(a=a, b=b)).init()
                 project.open_job(dict(a=dict(a=a), b=b)).init()
-        if hasattr(self, 'path'):
-            project._entrypoint.setdefault('path', self.path)
+        project._entrypoint = self.entrypoint
         return project
 
 
@@ -324,7 +324,7 @@ class ProjectClassTest(BaseProjectTest):
             with switch_to_directory(project.root_directory()):
                 starting_dir = os.getcwd()
                 with redirect_stderr(StringIO()):
-                    A().run()
+                    A(entrypoint=self.entrypoint).run()
                 self.assertTrue(os.getcwd(), starting_dir)
 
     def test_cmd_with_job_wrong_order(self):
@@ -355,7 +355,7 @@ class ProjectClassTest(BaseProjectTest):
             with switch_to_directory(project.root_directory()):
                 starting_dir = os.getcwd()
                 with redirect_stderr(StringIO()):
-                    A().run()
+                    A(entrypoint=self.entrypoint).run()
                 self.assertEqual(os.getcwd(), starting_dir)
                 for job in project:
                     self.assertTrue(os.path.isfile(job.fn("world.txt")))
@@ -376,7 +376,7 @@ class ProjectClassTest(BaseProjectTest):
                 starting_dir = os.getcwd()
                 with self.assertRaises(Exception):
                     with redirect_stderr(StringIO()):
-                        A().run()
+                        A(entrypoint=self.entrypoint).run()
                 self.assertEqual(os.getcwd(), starting_dir)
 
     def test_cmd_with_job_error_handling(self):
@@ -395,7 +395,7 @@ class ProjectClassTest(BaseProjectTest):
             with switch_to_directory(project.root_directory()):
                 starting_dir = os.getcwd()
                 with redirect_stderr(StringIO()):
-                    A().run()
+                    A(entrypoint=self.entrypoint).run()
                 self.assertEqual(os.getcwd(), starting_dir)
 
     def test_function_in_directives(self):
@@ -408,7 +408,7 @@ class ProjectClassTest(BaseProjectTest):
         def test_context(job):
             return 'exit 1'
 
-        project = A(self.mock_project().config, path='')
+        project = A(self.mock_project().config, entrypoint=self.entrypoint)
         for job in project:
             job.doc.np = 3
             next_op = project.next_operation(job)
@@ -426,7 +426,7 @@ class ProjectClassTest(BaseProjectTest):
         def a(job):
             return 'hello!'
 
-        project = A(self.mock_project().config, entrypoint='python')
+        project = A(self.mock_project().config, entrypoint=self.entrypoint)
 
         # test setting neither nranks nor omp_num_threads
         for job in project:
@@ -513,7 +513,7 @@ class ProjectClassTest(BaseProjectTest):
 
 class ProjectTest(BaseProjectTest):
     project_class = TestProject
-    path = os.path.realpath('tests/define_test_project.py')
+    entrypoint = dict(path=os.path.realpath('tests/define_test_project.py'))
 
     def test_instance(self):
         self.assertTrue(isinstance(self.project, FlowProject))
@@ -610,7 +610,7 @@ class ProjectTest(BaseProjectTest):
 class ExecutionProjectTest(BaseProjectTest):
     project_class = TestProject
     expected_number_of_steps = 4
-    path = os.path.realpath('tests/define_test_project.py')
+    entrypoint = dict(path=os.path.realpath('tests/define_test_project.py'))
 
     def test_pending_operations_order(self):
         # The execution order of local runs is internally assumed to be
@@ -976,7 +976,7 @@ class BufferedExecutionDynamicProjectTest(BufferedExecutionProjectTest,
 
 class ProjectMainInterfaceTest(BaseProjectTest):
     project_class = TestProject
-    path = 'tests/define_test_project'
+    entrypoint = dict(path=os.path.realpath('tests/define_test_project.py'))
 
     def switch_to_cwd(self):
         os.chdir(self.cwd)
@@ -1068,7 +1068,7 @@ class DynamicProjectMainInterfaceTest(ProjectMainInterfaceTest):
 # Tests for multiple operation groups or groups with options
 class GroupProjectTest(BaseProjectTest):
     project_class = GTestProject
-    path = os.path.realpath('tests/define_group_test_project.py')
+    entrypoint = dict(path=os.path.realpath('tests/define_group_test_project.py'))
 
     def test_instance(self):
         self.assertTrue(isinstance(self.project, FlowProject))
@@ -1102,7 +1102,7 @@ class GroupProjectTest(BaseProjectTest):
 
 class GroupExecutionProjectTest(BaseProjectTest):
     project_class = GTestProject
-    path = os.path.realpath('tests/define_group_test_project.py')
+    entrypoint = dict(path=os.path.realpath('tests/define_group_test_project.py'))
     expected_number_of_steps = 4
 
     def test_run_with_operation_selection(self):
@@ -1223,7 +1223,7 @@ class GroupBufferedExecutionDynamicProjectTest(GroupBufferedExecutionProjectTest
 
 class GroupProjectMainInterfaceTest(BaseProjectTest):
     project_class = GTestProject
-    path = 'tests/define_group_test_project'
+    entrypoint = dict(path=os.path.realpath('tests/define_group_test_project.py'))
 
     def switch_to_cwd(self):
         os.chdir(self.cwd)
