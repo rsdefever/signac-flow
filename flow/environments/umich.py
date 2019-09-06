@@ -3,6 +3,7 @@
 # This software is licensed under the BSD 3-Clause License.
 """Environments for the University of Michigan HPC environment."""
 from ..environment import DefaultTorqueEnvironment
+from ..environment import DefaultSlurmEnvironment
 
 
 class FluxEnvironment(DefaultTorqueEnvironment):
@@ -29,4 +30,27 @@ class FluxEnvironment(DefaultTorqueEnvironment):
             help="Specify how much memory to reserve per node. (default=4g)")
 
 
-__all__ = ['FluxEnvironment']
+class GreatLakesEnvironement(DefaultSlurmEnvironment):
+    """Environment profile for the GreatLakes supercomputing environment.
+
+    https://arc-ts.umich.edu/greatlakes/
+    """
+    hostname_pattern = r'^(gl)\w*(\.arc-ts\.\.umich\.edu)$'
+    template = 'umich-greatlakes.sh'
+    cores_per_node = 36
+
+    @classmethod
+    def add_args(cls, parser):
+        super(GreatLakesEnvironement, cls).add_args(parser)
+        parser.add_argument(
+                '--partition',
+                choices=('standard', 'gpu', 'largemem'),
+                default='standard',
+                help="Specify the partition to submit jobs under.")
+        parser.add_argument(
+                '--cpumemory',
+                default='768m',
+                help='Specify the memory per cpu. (default=768m')
+
+
+__all__ = ['FluxEnvironment', 'GreatLakesEnvironement']
