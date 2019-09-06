@@ -2,11 +2,11 @@
 {% extends "slurm.sh" %}
 {% block tasks %}
 {% set cpu_tasks = operations|calc_tasks('np', parallel, force) %}
-#SBATCH --ntasks={{ cpu_tasks }}
+#SBATCH --ntasks=1
 {% if partition == 'standard' %}
 {% set nodes = cpu_tasks|calc_num_nodes(1, 0, 'CPU') %}
 #SBATCH --nodes={{ nodes }}
-{% set cpus_per_task = cpu_tasks // len(operations) %}
+{% set cpus_per_task = cpu_tasks %}
 #SBATCH --cpus-per-task={{ cpus_per_task }}
 {% endif %}
 {% if memory %}
