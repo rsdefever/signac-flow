@@ -35,7 +35,7 @@ class GreatLakesEnvironement(DefaultSlurmEnvironment):
 
     https://arc-ts.umich.edu/greatlakes/
     """
-    hostname_pattern = r'^(gl)\w*(\.arc-ts\.\.umich\.edu)$'
+    hostname_pattern = r'(gl)-\w*(\.arc-ts\.umich\.edu)$'
     template = 'umich-greatlakes.sh'
     cores_per_node = 36
 
