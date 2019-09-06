@@ -11,6 +11,7 @@
 {% endif %}
 {% if memory %}
 #SBATCH --memory-per-cpu={{ cpumemory }}
+{% endif %}
 {% endblock %}
 
 {% block header %}
