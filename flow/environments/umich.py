@@ -30,7 +30,7 @@ class FluxEnvironment(DefaultTorqueEnvironment):
             help="Specify how much memory to reserve per node. (default=4g)")
 
 
-class GreatLakesEnvironement(DefaultSlurmEnvironment):
+class GreatLakesEnvironment(DefaultSlurmEnvironment):
     """Environment profile for the GreatLakes supercomputing environment.
 
     https://arc-ts.umich.edu/greatlakes/
@@ -41,7 +41,7 @@ class GreatLakesEnvironement(DefaultSlurmEnvironment):
 
     @classmethod
     def add_args(cls, parser):
-        super(GreatLakesEnvironement, cls).add_args(parser)
+        super(GreatLakesEnvironment, cls).add_args(parser)
         parser.add_argument(
                 '--partition',
                 choices=('standard', 'gpu', 'largemem'),
@@ -53,4 +53,4 @@ class GreatLakesEnvironement(DefaultSlurmEnvironment):
                 help='Specify the memory per cpu. (default=768m')
 
 
-__all__ = ['FluxEnvironment', 'GreatLakesEnvironement']
+__all__ = ['FluxEnvironment', 'GreatLakesEnvironment']
