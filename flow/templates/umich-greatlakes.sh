@@ -4,15 +4,12 @@
 {% set cpu_tasks = operations|calc_tasks('np', parallel, force) %}
 {% set tpp = operations|calc_tasks('omp_num_threads', false, force) %}
 {% set tpp = tpp if tpp else 1 %}
-{% set nranks = operations|calc_tasks('nranks', false, force) %}
 {% if partition == 'standard' %}
-{% if nranks %}
-{% set nn_cpu = nranks %}
-{% set ppn = 1 %}
-{% else %}
-{% set nn_cpu = (cpu_tasks * tpp)|calc_num_nodes(36, 0, 'CPU') %}
-{% set ppn = cpu_tasks // nn_cpu %}
-{% set ppn = ppn + 1 if cpu_tasks % nn_cpu else ppn %}
+{% set nn_cpu = cpu_tasks|calc_num_nodes(36, 0, 'CPU') %}
+{% set cpuproc = cpu_tasks // tpp %}
+{% set cpuproc = cpuproc + 1 if cpu_tasks % tpp else cpuproc %}
+{% set ppn = cpuproc // nn_cpu %}
+{% set ppn = ppn + 1 if cpu_tasks % tpp else ppn %}
 {% endif %}
 #SBATCH --nodes={{ nn_cpu }}
 #SBATCH --ntasks-per-node={{ ppn }}
