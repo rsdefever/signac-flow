@@ -2,14 +2,16 @@
 {% extends "slurm.sh" %}
 {% block tasks %}
 {% set cpu_tasks = operations|calc_tasks('np', parallel, force) %}
-#SBATCH --ntasks=1
+{% set threads_per_cpu = operations|calc_tasks('omp_num_threads', false, force) %}
 {% if partition == 'standard' %}
-{% set nodes = cpu_tasks|calc_num_nodes(36, 0, 'CPU') %}
-#SBATCH --nodes={{ nodes }}
-{% set cpus_per_task = cpu_tasks %}
-#SBATCH --cpus-per-task={{ cpus_per_task }}
+{% set nn_cpu = (cpu_tasks * threads_per_cpu)|calc_num_nodes(36, threshold, 'CPU') %}
+#SBATCH --nodes={{ nn_cpu }}
+{% set ppn = cpu_tasks // nodes %}
+{% set ppn = ppn + 1 if cpu_tasks % nn_cpu else ppn %}
+#SBATCH --ntasks-per-node={{ ppn }}
+#SBATCH --cpus-per-task={{ threads_per_cpu }}
 {% endif %}
-{% if memory %}
+{% if cpumemory %}
 #SBATCH --memory-per-cpu={{ cpumemory }}
 {% endif %}
 {% endblock %}
