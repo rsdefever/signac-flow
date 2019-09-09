@@ -3,10 +3,11 @@
 {% block tasks %}
 {% set cpu_tasks = operations|calc_tasks('np', parallel, force) %}
 {% set threads_per_cpu = operations|calc_tasks('omp_num_threads', false, force) %}
+{% set threads_per_cpu = threads_per_cpu if threads_per_cpu else 1 %}
 {% if partition == 'standard' %}
-{% set nn_cpu = (cpu_tasks * threads_per_cpu)|calc_num_nodes(36, threshold, 'CPU') %}
+{% set nn_cpu = (cpu_tasks * threads_per_cpu)|calc_num_nodes(36, 0, 'CPU') %}
 #SBATCH --nodes={{ nn_cpu }}
-{% set ppn = cpu_tasks // nodes %}
+{% set ppn = cpu_tasks // nn_cpu %}
 {% set ppn = ppn + 1 if cpu_tasks % nn_cpu else ppn %}
 #SBATCH --ntasks-per-node={{ ppn }}
 #SBATCH --cpus-per-task={{ threads_per_cpu }}
