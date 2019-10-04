@@ -809,7 +809,8 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             eligible = False if completed else flow_op.eligible(job)
             scheduler_status = cached_status.get(job_op.get_id(), JobStatus.unknown)
             yield job_op.name, {
-                'scheduler_status': scheduler_status,
+                'scheduler_status': scheduler_status[0],
+                'scheduler_jobs': scheduler_status[1],
                 'eligible': eligible,
                 'completed': completed,
             }
@@ -856,14 +857,14 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             scheduler = self._environment.get_scheduler()
 
             self.document.setdefault('_status', dict())
-            scheduler_info = {sjob.name(): sjob.status() for sjob in self.scheduler_jobs(scheduler)}
+            scheduler_info = {sjob.name(): (sjob.status(), sjob.cluster_id()) for sjob in self.scheduler_jobs(scheduler)}
             status = dict()
             print("Query scheduler...", file=file)
             for job in tqdm(jobs,
                             desc="Fetching operation status",
                             total=len(jobs), file=file):
                 for op in self._job_operations(job, only_eligible=False):
-                    status[op.get_id()] = int(scheduler_info.get(op.get_id(), JobStatus.unknown))
+                    status[op.get_id()] = (int(scheduler_info.get(op.get_id(), JobStatus.unknown)[0]), scheduler_info.get(op.get_id(), ""))
             self.document._status.update(status)
         except NoSchedulerError:
             logger.debug("No scheduler available.")
