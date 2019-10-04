@@ -38,7 +38,7 @@ def _fetch(user=None):
     if user is None:
         user = getpass.getuser()
 
-    cmd = ['squeue', '-u', user, '-h', "--format=%2t%100j"]
+    cmd = ['squeue', '-u', user, '-h', "--format=%8A%2t%100j"]
     try:
         result = subprocess.check_output(cmd).decode('utf-8', errors='backslashreplace')
     except subprocess.CalledProcessError:
@@ -51,9 +51,10 @@ def _fetch(user=None):
     lines = result.split('\n')
     for line in lines:
         if line:
-            status = line[:2]
-            name = line[2:].rstrip()
-            yield SlurmJob(name, parse_status(status))
+            cluster_id = line[:8]
+            status = line[8:10]
+            name = line[10:].rstrip()
+            yield SlurmJob(name, parse_status(status), cluster_id)
 
 
 class SlurmJob(ClusterJob):

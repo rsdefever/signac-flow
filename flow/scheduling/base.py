@@ -24,12 +24,17 @@ class JobStatus(enum.IntEnum):
 class ClusterJob(object):
     """This class represents a cluster job."""
 
-    def __init__(self, jobid, status=None):
+    def __init__(self, jobid, status=None, cluster_id=None):
         self._job_id = jobid
         self._status = status
+        self._cluster_id = cluster_id
 
     def _id(self):
         return self._job_id
+
+    def cluster_id(self):
+        """The id of the job on the cluster."""
+        return self._cluster_id
 
     def __str__(self):
         return str(self._id())
@@ -49,7 +54,7 @@ class Scheduler(object):
 
     # The amount of time in seconds a user needs to wait, before we
     # assume that repeated scheduler queries might risk a denial-of-service attack.
-    _dos_timeout = 10
+    _dos_timeout = 1
 
     @classmethod
     def _prevent_dos(cls):
