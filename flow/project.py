@@ -801,15 +801,6 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
         for sjob in self._expand_bundled_jobs(scheduler.jobs()):
             yield sjob
 
-    @staticmethod
-    def _map_scheduler_jobs(scheduler_jobs):
-        "Map all scheduler jobs by job id and operation name."
-        for sjob in scheduler_jobs:
-            name = sjob.name()
-            if name[32] == '-':
-                expanded = JobOperation.expand_id(name)
-                yield expanded['job_id'], expanded['operation-name'], sjob
-
     def _get_operations_status(self, job, cached_status):
         "Return a dict with information about job-operations for this job."
         for job_op in self._job_operations(job, False):
