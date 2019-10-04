@@ -54,7 +54,7 @@ class Scheduler(object):
 
     # The amount of time in seconds a user needs to wait, before we
     # assume that repeated scheduler queries might risk a denial-of-service attack.
-    _dos_timeout = 1
+    _dos_timeout = 10
 
     @classmethod
     def _prevent_dos(cls):
