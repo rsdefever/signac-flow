@@ -864,7 +864,8 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
                             desc="Fetching operation status",
                             total=len(jobs), file=file):
                 for op in self._job_operations(job, only_eligible=False):
-                    status[op.get_id()] = (int(scheduler_info.get(op.get_id(), JobStatus.unknown)[0]), scheduler_info.get(op.get_id(), ""))
+                    info = scheduler_info.get(op.get_id(), (JobStatus.unknown, None))
+                    status[op.get_id()] = (int(info[0]), info[1] if info[1] else '')
             self.document._status.update(status)
         except NoSchedulerError:
             logger.debug("No scheduler available.")
@@ -1385,7 +1386,8 @@ class FlowProject(signac.contrib.Project, metaclass=_FlowProjectClass):
             job['operations'][''] = {
                 'completed': False,
                 'eligible': True,
-                'scheduler_status': JobStatus.dummy}
+                'scheduler_status': JobStatus.dummy,
+                'scheduler_jobs': ''}
 
         for job in context['jobs']:
             has_eligible_ops = any([v['eligible'] for v in job['operations'].values()])
