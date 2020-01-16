@@ -276,12 +276,12 @@ class JobOperation(object):
     def set_status(self, value):
         "Store the operation's status."
         self.job._project.document.setdefault('_status', dict())
-        self.job._project.document._status[self.get_id()] = int(value)
+        self.job._project.document._status[self.get_id()] = [int(value), '']
 
     def get_status(self):
         "Retrieve the operation's last known status."
         try:
-            return JobStatus(self.job._project.document['_status'][self.get_id()])
+            return JobStatus(self.job._project.document['_status'][self.get_id()][0])
         except KeyError:
             return JobStatus.unknown
 
