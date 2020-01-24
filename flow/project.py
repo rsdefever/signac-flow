@@ -315,7 +315,7 @@ class JobOperation(object):
         if max_len < len(job_op_id):
             raise ValueError("Value for MAX_LEN_ID is too small ({}).".format(self.MAX_LEN_ID))
 
-        readable_name = '{}/{}/{}/{:04d}/'.format(
+        readable_name = '{}-{}-{}-{:04d}-'.format(
             str(project)[:12], str(self.job)[:8], self.name[:12], index)[:max_len]
 
         # By appending the unique job_op_id, we ensure that each id is truly unique.
